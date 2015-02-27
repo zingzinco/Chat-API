@@ -80,7 +80,6 @@ class WhatsProt
     protected $socket;                  // A socket to connect to the WhatsApp network.
     protected $writer;                  // An instance of the BinaryTreeNodeWriter class.
     protected $messageStore;
-    protected $storagePath;
     public    $reader;                  // An instance of the BinaryTreeNodeReader class.
 
     /**
@@ -102,7 +101,6 @@ class WhatsProt
         $this->reader = new BinTreeNodeReader();
         $this->debug = $debug;
         $this->phoneNumber = $number;
-        $this->storagePath = $storagePath;
 
         //e.g. ./cache/nextChallenge.12125557788.dat
         $this->challengeFilename = sprintf('%s%s%snextChallenge.%s.dat',
@@ -2154,7 +2152,12 @@ class WhatsProt
     protected function debugPrint($debugMsg)
     {
         if ($this->debug) {
-            echo $debugMsg;
+            if (is_array($debugMsg) || is_object($debugMsg)) {
+                print_r($debugMsg);
+            }
+            else {
+                echo $debugMsg;
+            }
             return true;
         }
 
@@ -2191,14 +2194,14 @@ class WhatsProt
                     }
 
                     $phone = array(
-                            'country' => $data[0],
-                            'cc' => $data[1],
-                            'phone' => substr($this->phoneNumber, strlen($data[1]), strlen($this->phoneNumber)),
-                            'mcc' => $mcc,
-                            'ISO3166' => @$data[3],
-                            'ISO639' => @$data[4],
-                            'mnc' => $data[5]
-                        );
+                        'country' => $data[0],
+                        'cc' => $data[1],
+                        'phone' => substr($this->phoneNumber, strlen($data[1]), strlen($this->phoneNumber)),
+                        'mcc' => $mcc,
+                        'ISO3166' => @$data[3],
+                        'ISO639' => @$data[4],
+                        'mnc' => $data[5]
+                    );
 
                     $this->eventManager()->fire("onDissectPhone",
                         array(
@@ -2614,6 +2617,15 @@ class WhatsProt
                 $challengeData = $node->getData();
                 file_put_contents($this->challengeFilename, $challengeData);
                 $this->writer->setKey($this->outputKey);
+
+                $this->eventManager()->fire("onLoginSuccess",
+                    array(
+                        $this->phoneNumber,
+                        $node->getAttribute("kind"),
+                        $node->getAttribute("status"),
+                        $node->getAttribute("creation"),
+                        $node->getAttribute("expiration")
+                    ));
             } elseif ($node->getAttribute("status") == "expired") {
                 $this->eventManager()->fire("onAccountExpired",
                     array(
@@ -3388,6 +3400,15 @@ class WhatsProt
                 {
                     case "dirty":
                         $this->sendClearDirty(array($child->getAttribute("type")));
+                        break;
+                    case "account":
+                        $this->eventManager()->fire("onPaymentRecieved",[
+                            $this->phoneNumber,
+                            $child->getAttribute("kind"),
+                            $child->getAttribute("status"),
+                            $child->getAttribute("creation"),
+                            $child->getAttribute("expiration")
+                        ]);
                         break;
                     case "offline":
 
