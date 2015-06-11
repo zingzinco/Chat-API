@@ -3226,6 +3226,7 @@ class WhatsProt
                     $this->phoneNumber,
                     $node->getAttribute('from'),
                     $node->getAttribute('id'),
+                    $node->getChild(0)->getAttribute('code'),
                     $node->getChild(0)
                 ));
         }
